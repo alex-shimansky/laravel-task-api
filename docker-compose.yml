@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: docker/php/Dockerfile
+        container_name: laravel_app
+        volumes:
+            - .:/var/www
+        depends_on:
+            - db
+
+    web:
+        image: nginx:alpine
+        container_name: nginx_web
+        ports:
+            - "8000:80"
+        volumes:
+            - .:/var/www
+            - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            - app
+
+    db:
+        image: mysql:8.0
+        container_name: mysql_db
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: drum
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_USER: drum
+            MYSQL_PASSWORD: drum
+        ports:
+            - "3306:3306"
+        volumes:
+            - db_data:/var/lib/mysql
+
+volumes:
+    db_data:
