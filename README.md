@@ -74,6 +74,16 @@ The API will be available at http://localhost:8000.
 
 ---
 
+## API Documentation
+
+The Swagger/OpenAPI documentation is available at:
+
+/api/documentation
+
+You can open this URL in the browser (e.g. `http://localhost:8000/api/documentation`) to explore and test all API endpoints interactively.
+
+---
+
 ## Authentication
 
 Register and login endpoints are available via AuthController (not shown in snippet).
@@ -87,15 +97,16 @@ Authorization: Bearer {token}
 
 ## API Endpoints
 
-Method	URI	                    Description
-POST	/api/login              User login
-POST	/api/logout             User logout
-GET	    /api/tasks              List tasks with filters & sort
-POST	/api/tasks              Create new task
-GET	    /api/tasks/{id}         Get task by ID with subtasks
-PUT	    /api/tasks/{id}         Update task
-DELETE	/api/tasks/{id}         Delete task
-POST	/api/tasks/{id}/done    Mark task as done
+| Method | URI                   | Description                    |
+|--------|------------------------|--------------------------------|
+| POST   | /api/login             | User login                     |
+| POST   | /api/logout            | User logout                    |
+| GET    | /api/tasks             | List tasks with filters & sort |
+| POST   | /api/tasks             | Create new task                |
+| GET    | /api/tasks/{id}        | Get task by ID with subtasks   |
+| PUT    | /api/tasks/{id}        | Update task                    |
+| DELETE | /api/tasks/{id}        | Delete task                    |
+| POST   | /api/tasks/{id}/done   | Mark task as done              |
 
 ---
 
@@ -120,6 +131,7 @@ Supported fields: created_at, completed_at, priority
 
 Task
 
+`
 id (int)
 user_id (int) — owner
 assignee_id (int|null)
@@ -130,6 +142,7 @@ priority (int)
 status (enum: todo, done, etc.)
 completed_at (timestamp|null)
 Timestamps
+`
 
 ---
 
