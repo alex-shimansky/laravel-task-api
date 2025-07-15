@@ -3,101 +3,81 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+
+use App\Http\Requests\Auth\LoginRequest;
+use App\Services\AuthService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
 use OpenApi\Annotations as OA;
 
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+
 /**
- * @OA\Tag(name="Authentication")
+ * @OA\Tag(
+ *     name="Authentication",
+ *     description="Endpoints for obtaining and revoking Sanctum tokens"
+ * )
  */
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly AuthService $service
+    ) {
+    }
+
     /**
      * @OA\Post(
      *     path="/api/login",
-     *     summary="Authenticate user and return token",
+     *     summary="Authenticate user and return Sanctum token",
      *     tags={"Authentication"},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"email", "password"},
-     *             @OA\Property(property="email", type="string", format="email", example="user@example.com"),
-     *             @OA\Property(property="password", type="string", format="password", example="password123")
+     *             required={"email","password"},
+     *             @OA\Property(property="email", type="string", format="email", example="test@example.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="123")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Successful login",
+     *         description="Authenticated",
      *         @OA\JsonContent(
      *             @OA\Property(property="token", type="string", example="1|abc123..."),
-     *             @OA\Property(property="user", type="object",
-     *                 @OA\Property(property="id", type="integer", example=1),
-     *                 @OA\Property(property="name", type="string", example="John Doe"),
-     *                 @OA\Property(property="email", type="string", example="user@example.com")
-     *             )
+     *             @OA\Property(property="user", ref="#/components/schemas/User")
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=422,
-     *         description="Validation error",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="The given data was invalid."),
-     *             @OA\Property(property="errors", type="object",
-     *                 @OA\Property(property="email", type="array", @OA\Items(type="string"))
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Invalid credentials"
-     *     )
+     *     @OA\Response(response=401, description="Invalid credentials")
      * )
      */
-    public function login(Request $request)
+    public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
-        ]);
+        $result = $this->service->attemptLogin(
+            $request->string('email')->toString(),
+            $request->string('password')->toString(),
+        );
 
-        if (!Auth::attempt($credentials)) {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid credentials.'],
-            ]);
-        }
-
-        $user = Auth::user();
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'token' => $token,
-            'user' => $user,
-        ]);
+        return response()->json($result);
     }
 
     /**
      * @OA\Post(
      *     path="/api/logout",
-     *     summary="Revoke the current user's token",
+     *     summary="Revoke current access token",
      *     tags={"Authentication"},
-     *     security={{"sanctum": {}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="User successfully logged out",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Logged out")
-     *         )
+     *     security={{"sanctum":{}}},
+     *     @OA\Response(response=200, description="Logged out",
+     *         @OA\JsonContent(@OA\Property(property="message", type="string", example="Logged out"))
      *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Unauthenticated"
-     *     )
+     *     @OA\Response(response=401, description="Unauthenticated")
      * )
      */
-    public function logout(Request $request)
+    public function logout(): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $this->service->logout($user);
+
         return response()->json(['message' => 'Logged out']);
     }
 }

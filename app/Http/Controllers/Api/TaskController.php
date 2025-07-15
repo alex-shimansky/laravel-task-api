@@ -5,27 +5,43 @@ namespace App\Http\Controllers\Api;
 use App\DTO\TaskCreateData;
 use App\DTO\TaskUpdateData;
 use App\DTO\TaskResponseData;
-use App\Enums\TaskStatus;
-use App\Enums\TaskPriority;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListTasksRequest;
+use App\Http\Requests\StoreTaskRequest;
+use App\Http\Requests\UpdateTaskRequest;
 use App\Models\Task;
 use App\Services\TaskService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rules\Enum;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
- * @OA\Tag(name="Tasks", description="Task management endpoints")
+ * @OA\Tag(
+ *     name="Tasks",
+ *     description="Task management endpoints"
+ * )
  */
 class TaskController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * TaskController constructor.
+     *
+     * @param TaskService $taskService
+     */
     public function __construct(private TaskService $taskService)
     {
     }
 
     /**
+     * List tasks with filters and sorting.
+     *
+     * @param ListTasksRequest $request
+     * @return JsonResponse
+     *
      * @OA\Get(
      *     path="/api/tasks",
      *     summary="List tasks with filters and sorting",
@@ -52,11 +68,8 @@ class TaskController extends Controller
      *     @OA\Parameter(
      *         name="sort",
      *         in="query",
-     *         @OA\Schema(
-     *             type="string",
-     *             example="priority:desc,created_at:asc"
-     *         ),
-     *         description="Sort by multiple fields. Format: field:asc|desc,field2:asc|desc"
+     *         @OA\Schema(type="string", example="priority:desc,created_at:asc"),
+     *         description="Sort by multiple fields"
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -66,32 +79,24 @@ class TaskController extends Controller
      *     @OA\Response(response=401, description="Unauthenticated")
      * )
      */
-    public function index(Request $request)
+    public function index(ListTasksRequest $request): JsonResponse
     {
-        $request->validate([
-            'status' => ['nullable', new Enum(TaskStatus::class)],
-            'priority' => ['nullable', new Enum(TaskPriority::class)],
-        ]);
+        $tasks = $this->taskService->list(
+            $request->user()->id,
+            $request->only(['status', 'priority', 'search']),
+            $request->sorts(),
+        );
 
-        $filters = $request->only(['status', 'priority', 'search']);
-        $sorts = [];
-
-        if ($request->filled('sort')) {
-            foreach (explode(',', $request->sort) as $sortParam) {
-                [$field, $dir] = explode(':', $sortParam) + [null, 'asc'];
-                $dir = strtolower($dir);
-                if (in_array($field, ['created_at', 'completed_at', 'priority']) && in_array($dir, ['asc', 'desc'])) {
-                    $sorts[$field] = $dir;
-                }
-            }
-        }
-
-        $tasks = $this->taskService->list($filters, $sorts);
-        $tasksDto = $this->mapTasksToDto($tasks);
-        return response()->json($tasksDto);
+        return response()->json($this->mapTasksToDto($tasks));
     }
 
-    private function mapTasksToDto($tasks)
+    /**
+     * Recursively map tasks and their subtasks to DTOs.
+     *
+     * @param Collection<Task> $tasks
+     * @return Collection<TaskResponseData>
+     */
+    private function mapTasksToDto(Collection $tasks): Collection
     {
         return $tasks->map(function (Task $task) {
             $dto = TaskResponseData::fromModel($task);
@@ -103,6 +108,11 @@ class TaskController extends Controller
     }
 
     /**
+     * Create a new task.
+     *
+     * @param StoreTaskRequest $request
+     * @return JsonResponse
+     *
      * @OA\Post(
      *     path="/api/tasks",
      *     summary="Create a new task",
@@ -124,29 +134,21 @@ class TaskController extends Controller
      *     @OA\Response(response=401, description="Unauthenticated")
      * )
      */
-    public function store(Request $request)
+    public function store(StoreTaskRequest $request): JsonResponse
     {
-        $data = $request->all();
-
-        if (isset($data['parent_id']) && $data['parent_id'] === 0) {
-            $data['parent_id'] = null;
-        }
-
-        $validated = validator($data, [
-            'title' => 'required|string',
-            'description' => 'nullable|string',
-            'priority' => ['required', new Enum(TaskPriority::class)],
-            'parent_id' => 'nullable|exists:tasks,id',
-            'assignee_id' => 'nullable|exists:users,id',
-        ])->validate();
-
-        $dto = TaskCreateData::fromArray($validated);
+        $dto = TaskCreateData::fromArray($request->validated(), $request->user()->id);
         $task = $this->taskService->create($dto);
 
         return response()->json(TaskResponseData::fromModel($task), 201);
     }
 
     /**
+     * Show a specific task.
+     *
+     * @param Task $task
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
      * @OA\Get(
      *     path="/api/tasks/{id}",
      *     summary="Get task by ID",
@@ -158,13 +160,21 @@ class TaskController extends Controller
      *     @OA\Response(response=401, description="Unauthenticated")
      * )
      */
-    public function show(Task $task)
+    public function show(Task $task): JsonResponse
     {
         $this->authorize('view', $task);
         return response()->json($task->load('subtasks'));
     }
 
     /**
+     * Update a task.
+     *
+     * @param UpdateTaskRequest $request
+     * @param Task $task
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
+     * @throws ValidationException
      * @OA\Put(
      *     path="/api/tasks/{id}",
      *     summary="Update task",
@@ -186,24 +196,24 @@ class TaskController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-    public function update(Request $request, Task $task)
+    public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
         $this->authorize('update', $task);
 
-        $validated = $request->validate([
-            'title' => 'sometimes|string',
-            'description' => 'nullable|string',
-            'priority' => ['nullable', new Enum(TaskPriority::class)],
-            'assignee_id' => 'nullable|exists:users,id',
-        ]);
-
-        $dto = TaskUpdateData::fromArray($validated);
+        $dto = TaskUpdateData::fromArray($request->validated());
         $task = $this->taskService->update($task, $dto);
 
         return response()->json(TaskResponseData::fromModel($task));
     }
 
     /**
+     * Delete a task.
+     *
+     * @param Task $task
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
+     * @throws ValidationException
      * @OA\Delete(
      *     path="/api/tasks/{id}",
      *     summary="Delete task",
@@ -215,7 +225,7 @@ class TaskController extends Controller
      *     @OA\Response(response=401, description="Unauthenticated")
      * )
      */
-    public function destroy(Task $task)
+    public function destroy(Task $task): JsonResponse
     {
         $this->authorize('delete', $task);
 
@@ -225,6 +235,13 @@ class TaskController extends Controller
     }
 
     /**
+     * Mark task as done.
+     *
+     * @param Task $task
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
+     * @throws ValidationException
      * @OA\Post(
      *     path="/api/tasks/{id}/done",
      *     summary="Mark task as done",
@@ -237,7 +254,7 @@ class TaskController extends Controller
      *     @OA\Response(response=422, description="Validation error (if subtasks not done)")
      * )
      */
-    public function markAsDone(Task $task)
+    public function markAsDone(Task $task): JsonResponse
     {
         $this->authorize('update', $task);
 

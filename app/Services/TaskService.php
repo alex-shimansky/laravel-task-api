@@ -2,13 +2,14 @@
 
 namespace App\Services;
 
+use App\DTO\TaskCompleteData;
 use App\DTO\TaskCreateData;
 use App\DTO\TaskUpdateData;
 use App\Enums\TaskStatus;
 use App\Models\Task;
 use App\Repositories\TaskRepositoryInterface;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class TaskService
@@ -17,24 +18,14 @@ class TaskService
         private TaskRepositoryInterface $repository
     ) {}
 
-    public function list(array $filters, array $sorts)
+    public function list(int $userId, array $filters, array $sorts): Collection
     {
-        return $this->repository->getFiltered($filters, $sorts);
+        return $this->repository->getFiltered($userId, $filters, $sorts);
     }
 
     public function create(TaskCreateData $dto): Task
     {
-        $data = [
-            'user_id' => Auth::id(),
-            'status' => TaskStatus::TODO,
-            'title' => $dto->title,
-            'description' => $dto->description,
-            'priority' => $dto->priority->value,
-            'parent_id' => $dto->parent_id ?? null,
-            'assignee_id' => $dto->assignee_id,
-        ];
-
-        return $this->repository->create($data);
+        return $this->repository->create($dto);
     }
 
     public function update(Task $task, TaskUpdateData $dto): Task
@@ -43,14 +34,7 @@ class TaskService
             throw ValidationException::withMessages(['task' => 'Cannot update completed task']);
         }
 
-        $data = array_filter([
-            'title' => $dto->title,
-            'description' => $dto->description,
-            'priority' => $dto->priority?->value,
-            'assignee_id' => $dto->assignee_id,
-        ], fn($v) => $v !== null);
-
-        return $this->repository->update($task, $data);
+        return $this->repository->update($task, $dto);
     }
 
     public function delete(Task $task): void
@@ -68,9 +52,8 @@ class TaskService
             throw ValidationException::withMessages(['task' => 'All subtasks must be completed']);
         }
 
-        return $this->repository->update($task, [
-            'status' => TaskStatus::DONE,
-            'completed_at' => Carbon::now(),
-        ]);
+        $dto = new TaskCompleteData(Carbon::now());
+
+        return $this->repository->update($task, $dto);
     }
 }

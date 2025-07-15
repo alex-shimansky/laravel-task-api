@@ -35,7 +35,7 @@ class TaskSeeder extends Seeder
             'title' => 'Project Planning',
             'description' => 'Plan the overall project',
             'priority' => 2,
-            'status' => 'todo',
+            'status' => 1,
         ]);
 
         $subtask1 = Task::create([
@@ -45,7 +45,7 @@ class TaskSeeder extends Seeder
             'title' => 'Gather requirements',
             'description' => 'Collect functional and non-functional requirements from stakeholders to define the necessary features and constraints.',
             'priority' => 3,
-            'status' => 'done',
+            'status' => 2,
             'completed_at' => Carbon::now(),
         ]);
 
@@ -55,7 +55,7 @@ class TaskSeeder extends Seeder
             'parent_id' => $task1->id,
             'title' => 'Define milestones',
             'priority' => 4,
-            'status' => 'todo',
+            'status' => 1,
         ]);
 
         Task::create([
@@ -63,7 +63,7 @@ class TaskSeeder extends Seeder
             'assignee_id' => $developer->id,
             'title' => 'Setup project repository',
             'priority' => 1,
-            'status' => 'done',
+            'status' => 2,
             'completed_at' => Carbon::now()->subDay(),
         ]);
 
@@ -73,7 +73,7 @@ class TaskSeeder extends Seeder
             'title' => 'Initialize CI/CD pipeline',
             'description' => 'Set up continuous integration and delivery for automated testing and deployment.',
             'priority' => 1,
-            'status' => 'done',
+            'status' => 2,
             'completed_at' => Carbon::now()->subDay(),
         ]);
     }

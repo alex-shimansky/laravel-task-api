@@ -2,15 +2,16 @@
 
 namespace App\Repositories;
 
+use App\DTO\TaskCreateData;
+use App\DTO\TaskUpdateData;
 use App\Models\Task;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 
 class TaskRepository implements TaskRepositoryInterface
 {
-    public function getFiltered(array $filters, array $sorts): Collection
+    public function getFiltered(int $userId, array $filters, array $sorts): Collection
     {
-        $query = Task::query()->where('user_id', Auth::id());
+        $query = Task::query()->where('user_id', $userId);
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -48,7 +49,7 @@ class TaskRepository implements TaskRepositoryInterface
      * @param int|null $parentId
      * @return array
      */
-    protected function buildTree($tasks, ?int $parentId = null): array
+    protected function buildTree(Collection $tasks, ?int $parentId = null): array
     {
         $branch = [];
 
@@ -67,14 +68,30 @@ class TaskRepository implements TaskRepositoryInterface
         return $branch;
     }
 
-    public function create(array $data): Task
+    public function create(TaskCreateData $dto): Task
     {
-        return Task::create($data);
+        return Task::create([
+            'user_id'     => $dto->user_id,
+            'status'      => $dto->status->value,
+            'title'       => $dto->title,
+            'description' => $dto->description,
+            'priority'    => $dto->priority->value,
+            'parent_id'   => $dto->parent_id,
+            'assignee_id' => $dto->assignee_id,
+        ]);
     }
 
-    public function update(Task $task, array $data): Task
+    public function update(Task $task, TaskUpdateData $dto): Task
     {
-        $task->update($data);
+        $task->update(array_filter([
+            'title'       => $dto->title,
+            'description' => $dto->description,
+            'priority'    => $dto->priority?->value,
+            'assignee_id' => $dto->assignee_id,
+            'status'       => property_exists($dto, 'status') ? $dto->status?->value : null,
+            'completed_at' => property_exists($dto, 'completed_at') ? $dto->completed_at : null,
+        ], fn ($v) => $v !== null));
+
         return $task;
     }
 
