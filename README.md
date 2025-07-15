@@ -131,7 +131,7 @@ Supported fields: created_at, completed_at, priority
 
 Task
 
-<pre lang="md"> ```
+<pre lang="md">
 id (int)
 user_id (int) — owner
 assignee_id (int|null)
@@ -142,7 +142,7 @@ priority (int)
 status (enum: todo, done, etc.)
 completed_at (timestamp|null)
 Timestamps
-``` </pre>
+</pre>
 
 ---
 
