@@ -111,15 +111,15 @@ Use Sanctum tokens for API authentication.
 
 Filters:
 
-status: Task status enum (e.g. todo, done)
-priority: Task priority enum integer
-search: Full-text search on title or description
+`status`: Task status enum (e.g. todo, done)  
+`priority`: Task priority enum integer  
+`search`: Full-text search on title or description
 
 Sorting:
 
-Pass sort query parameter with multiple fields, e.g. ?sort=priority:desc,created_at:asc
+Pass sort query parameter with multiple fields, e.g. `?sort=priority:desc,created_at:asc`
 
-Supported fields: created_at, completed_at, priority
+Supported fields: `created_at`, `completed_at`, `priority`
 
 ---
 
