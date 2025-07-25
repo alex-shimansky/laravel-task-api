@@ -63,7 +63,13 @@ Laravel app (laravel_app)
 Nginx (nginx_web) → http://localhost:8000  
 MySQL (mysql_db)  
 
-5. **Install dependencies, run migrations and seeders**
+5. **Generate application encryption key**
+
+```bash
+docker compose exec app php artisan key:generate
+```
+
+6. **Install dependencies, run migrations and seeders**
 
 ```bash
 docker compose exec app composer install
