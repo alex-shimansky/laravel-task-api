@@ -19,58 +19,58 @@ A simple Laravel-based REST API for managing hierarchical tasks with subtasks, f
 
 ## Requirements
 
-- PHP 8.1+
-- Laravel 12+
-- MySQL 8+ (with full-text index support)
-- Composer
-- Node.js & npm (optional, if frontend or mix assets are needed)
+- Docker
+- Docker Compose
 
 ---
 
-## Installation
+## Setup (with Docker Compose)
 
-1. **Clone repository**
+1. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/laravel-task-api.git
+git clone https://github.com/alex-shimansky/laravel-task-api.git
 cd laravel-task-api
 ```
 
-2. **Install dependencies**
+2. **Configure environment variables**
 
-```bash
-composer install
-```
-
-3. **Create .env file**
+Copy .env.example to .env:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit .env to set your database credentials and other settings.
+Set database credentials in .env:
+<pre lang="md">
+DB_CONNECTION=mysql
+DB_HOST=db
+DB_PORT=3306
+DB_DATABASE=drum
+DB_USERNAME=drum
+DB_PASSWORD=drum
+</pre>
 
-4. **Generate application key**
+3. **Start Docker containers**
 
 ```bash
-php artisan key:generate
+docker compose up -d --build
 ```
 
-5. **Run migrations and seeders**
+This will start:
+
+Laravel app (laravel_app)  
+Nginx (nginx_web) → http://localhost:8000  
+MySQL (mysql_db)  
+
+5. **Install dependencies, run migrations and seeders**
 
 ```bash
-php artisan migrate --seed
+docker compose exec app composer install
+docker compose exec app migrate --seed
 ```
 
 This will create the necessary tables and seed initial users and tasks.
-
-6. **Run development server**
-
-```bash
-php artisan serve
-```
-
-The API will be available at http://localhost:8000.
 
 ---
 
@@ -78,20 +78,17 @@ The API will be available at http://localhost:8000.
 
 The Swagger/OpenAPI documentation is available at:
 
-/api/documentation
+`http://localhost:8000/api/documentation`
 
-You can open this URL in the browser (e.g. `http://localhost:8000/api/documentation`) to explore and test all API endpoints interactively.
+You can open this URL in the browser to explore and test all API endpoints interactively.
 
 ---
 
 ## Authentication
 
-Register and login endpoints are available via AuthController (not shown in snippet).
+Login endpoint is available.
 
 Use Sanctum tokens for API authentication.
-
-Send the token in the header as:
-Authorization: Bearer {token}
 
 ---
 
@@ -120,8 +117,7 @@ search: Full-text search on title or description
 
 Sorting:
 
-Pass sort query parameter with multiple fields, e.g.
-?sort=priority:desc,created_at:asc
+Pass sort query parameter with multiple fields, e.g. ?sort=priority:desc,created_at:asc
 
 Supported fields: created_at, completed_at, priority
 
